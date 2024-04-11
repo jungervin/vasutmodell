@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        svg {
+            user-select: none;
+        }
+    </style>
+</head>
+
+<body>
+    <object id="svg" data="images/palya01.svg" type="image/svg+xml" style="height:100%;" onload="dataloaded()"></object>
+
+    <script>
+
+
+        let Switches = []
+        let Turnouts = []
+        let Signals = []
+
+        const Logic =
+        {
+            Switches: [
+                { id: "K1", to: "TURNOUT1" },
+                { id: "K2", to: "TURNOUT2" },
+                { id: "K3", to: "TURNOUT3" },
+                { id: "K4", to: "TURNOUT4" },
+                { id: "K5", to: "TURNOUT5" },
+                { id: "K6", to: "TURNOUT6" },
+                { id: "K7", to: "TURNOUT7" },
+                { id: "K8", to: "TURNOUT8" },
+
+            ]
+        }
+
+
+        class Director {
+
+            getTO(id) {
+                for (i = 0; i < Turnouts.length; i++) {
+                    if (Turnouts[i].id == id) {
+                        return Turnouts[i];
+                    }
+                }
+                return null;
+            }
+
+            getSW(id) {
+                for (i = 0; i < Switches.length; i++) {
+                    if (Switches[i].id == id) {
+                        return Switches[i];
+                    }
+                }
+                return null;
+            }
+
+            update() {
+                Logic.Switches.forEach((item) => {
+                    var sw = this.getSW(item.id)
+                    var to = this.getTO(item.to)
+                    to.setState(sw.state)
+
+                })
+            }
+        }
+
+        class Switch {
+            constructor(svg, id) {
+                this.id = id
+                this.sw = svg.getElementById(id);
+                this.sw.style.cursor = "pointer"
+                this.sw.style.opacity = "0.01";
+
+                this.sw_on = svg.getElementById(id + "_ON");
+                this.sw_off = svg.getElementById(id + "_OFF");
+                this.setState(false)
+                this.sw.onclick = (e) => {
+                    this.setState(!this.state)
+                    Director1.update()
+                }
+                return this
+            }
+
+            setState(state) {
+                if (state) {
+                    this.sw_on.style.visibility = "visible"
+                    this.sw_off.style.visibility = "hidden"
+                } else {
+                    this.sw_on.style.visibility = "hidden"
+                    this.sw_off.style.visibility = "visible"
+                }
+                this.state = state
+            }
+        }
+
+
+        class Turnout {
+            constructor(svg, id) {
+                this.id = id
+                this.on = svg.getElementById(id + "_ON");
+                this.off = svg.getElementById(id + "_OFF");
+                this.setState(false)
+                return this
+            }
+
+            setState(state) {
+                if (state) {
+                    this.on.style.visibility = "visible"
+                    this.off.style.visibility = "hidden"
+                } else {
+                    this.on.style.visibility = "hidden"
+                    this.off.style.visibility = "visible"
+                }
+                this.state = state
+            }
+        }
+
+        const Director1 = new Director()
+        function dataloaded() {
+            svg = document.getElementById("svg").contentDocument;
+
+            // var ids = svg.querySelectorAll('[id]');
+            // ids.forEach(function (element) {
+            //     console.log(element.id);
+            // });
+
+            // #K -KAPCSOLÓ
+            // #TURNOUT - KITÉRŐ
+            // #RW - PÁLYA
+
+
+            for (i = 1; i <= 8; i++) {
+                var s = new Switch(svg, "K" + i)
+                if (s) {
+                    Switches.push(s)
+                }
+            }
+
+            for (i = 1; i <= 8; i++) {
+                var t = new Turnout(svg, "TURNOUT" + i)
+                if (t) {
+                    Turnouts.push(t)
+                }
+            }
+
+        }
+
+    </script>
+</body>
+
+</html>
