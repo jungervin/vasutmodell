@@ -15,12 +15,59 @@
 <body>
     <object id="svg" data="images/palya01.svg" type="image/svg+xml" style="height:100%;" onload="dataloaded()"></object>
 
-    <script>
 
+
+
+
+    <script>
 
         let Switches = []
         let Turnouts = []
         let Signals = []
+        let Director1 = null
+
+        let ws;
+
+        const connectWebSocket = () => {
+            ws = new WebSocket('ws://127.0.0.1:1880/ws/dcc');
+
+            ws.onopen = () => {
+                console.log('WebSocket kapcsolat létrehozva.');
+                // Ide írhatod az üzenetek küldését, ha szükséges
+                // Példa: ws.send('Hello, szerver!');
+            };
+
+            ws.onmessage = (event) => {
+                console.log('Kapott üzenet: ' + event.data);
+                // Ide írhatod a kapott üzenetek kezelését
+                Director1.onmessage(event)
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket kapcsolat megszakadt.');
+                // Újracsatlakozás hívása
+                reconnectWebSocket();
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket hiba: ', error);
+                // Újracsatlakozás hívása
+                reconnectWebSocket();
+            };
+        };
+
+        const reconnectWebSocket = () => {
+            console.log('Újracsatlakozás 5 másodperc múlva...');
+            setTimeout(() => {
+                connectWebSocket();
+            }, 500);
+        };
+
+        // Indítás
+        connectWebSocket();
+
+
+
 
         const Logic =
         {
@@ -39,6 +86,32 @@
 
 
         class Director {
+
+            constructor() {
+                this.onmessage = (event) => {
+                    console.log('Kapott DCC üzenet: ' + event.data);
+
+
+                    // parse
+                    if (event.data.startsWith("<")) {
+                        var dcc = event.data.replace("<", "").trim().replace(">", "").split(" ")
+                        var cmd = null;
+                        if (dcc[0] == "H") {
+                            cmd = { id: "TURNOUT" + dcc[1], state: dcc[2] }
+
+                            for (let i = 0; i < Turnouts.length; i++) {
+                                Turnouts[i].onmessage(cmd);
+                            }
+                            cmd = { id: "K" + dcc[1], state: dcc[2] }
+                            for (let i = 0; i < Switches.length; i++) {
+                                Switches[i].onmessage(cmd);
+                            }
+
+                        }
+                    }
+
+                }
+            }
 
             getTO(id) {
                 for (i = 0; i < Turnouts.length; i++) {
@@ -79,9 +152,26 @@
                 this.sw_off = svg.getElementById(id + "_OFF");
                 this.setState(false)
                 this.sw.onclick = (e) => {
-                    this.setState(!this.state)
-                    Director1.update()
+                    //this.setState(!this.state)
+
+                    //"<" + msg.payload.replace("H", "T") + ">";
+                    var n = this.id.replace("K", "")
+                    if (this.state) {
+                        ws.send("<T " + n + " 0>\n")
+                    }
+                    else {
+                        ws.send("<T " + n + " 1>\n")
+                    }
+
+                    //Director1.update()
                 }
+
+                this.onmessage = (cmd) => {
+                    if (cmd.id == this.id) {
+                        this.setState(cmd.state == "1")
+                    }
+                }
+
                 return this
             }
 
@@ -102,8 +192,26 @@
             constructor(svg, id) {
                 this.id = id
                 this.on = svg.getElementById(id + "_ON");
+                this.on.style.cursor = "pointer"
+                this.on.onclick = (e) => {
+                    var n = this.id.replace("TURNOUT", "")
+                    ws.send("<T " + n + " 0>")
+                }
+
                 this.off = svg.getElementById(id + "_OFF");
+                this.off.style.cursor = "pointer"
+                this.off.onclick = (e) => {
+                    var n = this.id.replace("TURNOUT", "")
+                    ws.send("<T " + n + " 1>")
+                }
+
                 this.setState(false)
+                this.onmessage = (cmd) => {
+                    if (cmd.id == this.id) {
+                        this.setState(cmd.state == "1")
+                    }
+                }
+
                 return this
             }
 
@@ -119,8 +227,12 @@
             }
         }
 
-        const Director1 = new Director()
+
+
         function dataloaded() {
+
+            Director1 = new Director()
+
             svg = document.getElementById("svg").contentDocument;
 
             // var ids = svg.querySelectorAll('[id]');
@@ -146,7 +258,7 @@
                     Turnouts.push(t)
                 }
             }
-
+            ws.send("<H>\n")
         }
 
     </script>
